@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Boulevard — Kap-Ayisyen 3D (Zonbi)</title>
+<title>Boulevard — Kap-Ayisyen 3D (Siviv)</title>
 <style>
     :root{
         --gold:#D9A441;
@@ -22,6 +22,7 @@
         touch-action:none;
     }
     canvas{display:block;outline:none;touch-action:none;}
+    #renderCanvas{position:fixed;inset:0;width:100%;height:100%;}
 
     #loading{
         position:fixed;inset:0;
@@ -88,7 +89,7 @@
         border-right:3px solid var(--blood);
         backdrop-filter:blur(6px);
         padding:12px 16px;border-radius:6px;
-        min-width:150px;
+        min-width:160px;
         pointer-events:none;user-select:none;
     }
     #stat-panel .eyebrow{
@@ -97,16 +98,17 @@
     }
     #hp-track{
         width:100%;height:8px;background:rgba(255,255,255,.15);
-        border-radius:4px;overflow:hidden;margin-bottom:6px;
+        border-radius:4px;overflow:hidden;margin-bottom:8px;
     }
     #hp-fill{
         width:100%;height:100%;background:linear-gradient(90deg,var(--blood),var(--gold));
         transition:width .25s ease;
     }
-    #zombie-dist{font-size:.72rem;opacity:.85;}
+    #survival-timer{font-size:.72rem;opacity:.9;margin-bottom:2px;}
+    #zombie-count{font-size:.68rem;opacity:.7;}
 
     #compass{
-        position:fixed;top:100px;right:18px;z-index:10;
+        position:fixed;top:112px;right:18px;z-index:10;
         width:44px;height:44px;border-radius:50%;
         background:var(--panel-bg);
         border:1px solid var(--panel-border);
@@ -154,22 +156,31 @@
     #mobile-controls{
         position:fixed;inset:0;z-index:8;pointer-events:none;display:none;
     }
-    #joystick-zone, #look-zone{
-        position:absolute;bottom:0;width:50%;height:55%;pointer-events:auto;
+    #look-zone{
+        position:absolute;bottom:0;right:0;width:50%;height:55%;pointer-events:auto;
     }
-    #joystick-zone{left:0;}
-    #look-zone{right:0;}
-    #joystick-base{
-        position:absolute;width:96px;height:96px;border-radius:50%;
-        border:1px solid var(--panel-border);
+    #dpad{
+        position:fixed;left:18px;bottom:18px;z-index:11;
+        width:168px;height:168px;pointer-events:none;
+    }
+    .dpad-btn{
+        position:absolute;width:54px;height:54px;border-radius:10px;
         background:var(--panel-bg);
-        display:none;
+        border:1px solid var(--panel-border);
+        color:var(--gold);
+        font-family:'Helvetica Neue',Arial,sans-serif;
+        font-size:1.1rem;font-weight:700;
+        display:flex;align-items:center;justify-content:center;
+        pointer-events:auto;user-select:none;
     }
-    #joystick-knob{
-        position:absolute;width:40px;height:40px;border-radius:50%;
-        background:rgba(217,164,65,0.55);
-        top:28px;left:28px;
+    .dpad-btn.active{background:rgba(217,164,65,0.4);}
+    .dpad-btn small{
+        position:absolute;bottom:3px;font-size:.5rem;letter-spacing:1px;opacity:.75;font-family:inherit;
     }
+    #dpad-up{left:57px;top:0;}
+    #dpad-down{left:57px;bottom:0;}
+    #dpad-left{left:0;top:57px;}
+    #dpad-right{right:0;top:57px;}
     #run-btn{
         position:fixed;bottom:22px;right:22px;z-index:11;
         width:64px;height:64px;border-radius:50%;
@@ -181,14 +192,41 @@
     }
     #run-btn.active{background:rgba(217,164,65,0.35);}
 
+    #gameover{
+        position:fixed;inset:0;z-index:60;
+        background:rgba(6,8,12,0.88);
+        display:none;
+        flex-direction:column;align-items:center;justify-content:center;
+        color:#F4E9D8;
+        font-family:'Helvetica Neue',Arial,sans-serif;
+        text-align:center;
+    }
+    #gameover.show{display:flex;}
+    #gameover h2{
+        font-family:'Georgia',serif;
+        font-size:2rem;letter-spacing:2px;color:var(--blood);
+        margin-bottom:10px;
+        text-transform:uppercase;
+    }
+    #gameover p{
+        font-size:.85rem;opacity:.85;margin-bottom:24px;
+    }
+    #gameover button{
+        pointer-events:auto;
+        background:var(--gold);color:#1B2A4A;border:none;
+        padding:12px 28px;border-radius:6px;
+        font-size:.85rem;letter-spacing:1px;font-weight:700;
+        text-transform:uppercase;cursor:pointer;
+    }
+
     @media (max-width:820px){
         #controls-hint{display:none;}
         #mobile-controls{display:block;}
         #run-btn{display:flex;}
         #hud .title-card{max-width:190px;padding:10px 14px;}
         #hud h1{font-size:1rem;}
-        #stat-panel{min-width:120px;padding:10px 12px;}
-        #compass{top:90px;}
+        #stat-panel{min-width:130px;padding:10px 12px;}
+        #compass{top:100px;}
     }
 </style>
 </head>
@@ -197,21 +235,22 @@
 <div id="loading">
     <h1>Boulevard · Kap-Ayisyen</h1>
     <div class="bar-track"><div class="bar-fill"></div></div>
-    <p>AP CHAJE ZONBI A…</p>
+    <p>AP CHAJE ZONBI YO…</p>
 </div>
 
 <div id="hud">
     <div class="title-card">
         <div class="eyebrow">Prototip 3D · Babylon.js</div>
         <h1>Boulevard, Kap-Ayisyen</h1>
-        <div class="desc">Gen yon zonbi k ap chase w kounye a — sa se premye tès mekanik siviv la.</div>
+        <div class="desc">Plizyè zonbi ap chase w — kèk pi rapid pase lòt. Konbyen tan w ka siviv?</div>
     </div>
 </div>
 
 <div id="stat-panel">
     <div class="eyebrow">Sante</div>
     <div id="hp-track"><div id="hp-fill"></div></div>
-    <div id="zombie-dist">Zonbi: —</div>
+    <div id="survival-timer">Tan siviv: 0s</div>
+    <div id="zombie-count">Zonbi ap chase: —</div>
 </div>
 
 <div id="controls-hint">
@@ -224,12 +263,21 @@
 <div id="hit-flash"></div>
 
 <div id="mobile-controls">
-    <div id="joystick-zone">
-        <div id="joystick-base"><div id="joystick-knob"></div></div>
-    </div>
     <div id="look-zone"></div>
 </div>
+<div id="dpad">
+    <div class="dpad-btn" id="dpad-up">▲<small>AVANSE</small></div>
+    <div class="dpad-btn" id="dpad-down">▼<small>DÈYÈ</small></div>
+    <div class="dpad-btn" id="dpad-left">◀<small>GOCH</small></div>
+    <div class="dpad-btn" id="dpad-right">▶<small>DWAT</small></div>
+</div>
 <div id="run-btn">KOURI</div>
+
+<div id="gameover">
+    <h2>Ou Tonbe</h2>
+    <p id="gameover-stat">Ou siviv 0 segond</p>
+    <button id="restart-btn">Rekòmanse</button>
+</div>
 
 <canvas id="renderCanvas"></canvas>
 
@@ -238,28 +286,25 @@
 (function(){
     "use strict";
 
-    /* ======================= SETUP ======================= */
     const canvas = document.getElementById('renderCanvas');
     const engine = new BABYLON.Engine(canvas, true, {stencil:true}, true);
     const scene = new BABYLON.Scene(engine);
     scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
     scene.fogColor = new BABYLON.Color3(0.56, 0.66, 0.75);
     scene.fogDensity = 0.012;
-    scene.collisionsEnabled = false;
 
     const EYE_HEIGHT = 1.7;
     const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, EYE_HEIGHT, 6), scene);
     camera.minZ = 0.05;
     camera.maxZ = 800;
-    camera.fov = 1.15; // ~66deg
-    camera.inputs.clear(); // fully manual movement/look
+    camera.fov = 1.15;
+    camera.inputs.clear();
 
-    /* ======================= WORLD LAYOUT CONSTANTS ======================= */
     const WORLD_HALF_LENGTH = 70;
     const OCEAN_EDGE_Z = -2.6;
     const BUILDING_EDGE_Z = 7.4;
 
-    /* ======================= SKY (dusk gradient) ======================= */
+    /* ======================= SKY ======================= */
     (function buildSky(){
         const skyTex = new BABYLON.DynamicTexture('skyTex', {width:8, height:512}, scene, false);
         const ctx = skyTex.getContext();
@@ -309,7 +354,7 @@
         return m;
     }
 
-    /* ======================= GROUND / PROMENADE ======================= */
+    /* ======================= GROUND ======================= */
     const ground = BABYLON.MeshBuilder.CreateGround('ground', {width:WORLD_HALF_LENGTH*2+40, height:20}, scene);
     ground.position.set(0,0,2.2);
     ground.material = mat('groundMat', '#9A8F7E');
@@ -337,7 +382,6 @@
     const oceanBaseY = new Float32Array(oceanPositions.length/3);
     for(let i=0;i<oceanBaseY.length;i++){ oceanBaseY[i] = oceanPositions[i*3+1]; }
 
-    /* seawall */
     const wall = BABYLON.MeshBuilder.CreateBox('wall', {width:WORLD_HALF_LENGTH*2+40, height:0.6, depth:0.4}, scene);
     wall.position.set(0,0.3,OCEAN_EDGE_Z);
     wall.material = mat('wallMat', '#C9C2B4');
@@ -352,7 +396,7 @@
         shadowGen.addShadowCaster(post);
     }
 
-    /* ======================= PALM TREES ======================= */
+    /* ======================= PALMS ======================= */
     const trunkMat = mat('trunkMat', '#6B4A32');
     const leafMat = mat('leafMat', '#2E6E4E');
     leafMat.backFaceCulling = false;
@@ -360,7 +404,6 @@
     function makePalm(x,z,scale){
         const root = new BABYLON.TransformNode('palm', scene);
         root.position.set(x,0,z);
-
         const trunk = BABYLON.MeshBuilder.CreateCylinder('trunk', {
             diameterTop:0.18*scale, diameterBottom:0.32*scale, height:3.2*scale, tessellation:6
         }, scene);
@@ -369,7 +412,6 @@
         trunk.material = trunkMat;
         trunk.parent = root;
         shadowGen.addShadowCaster(trunk);
-
         const leafCount = 6;
         for(let i=0;i<leafCount;i++){
             const leaf = BABYLON.MeshBuilder.CreateCylinder('leaf', {
@@ -390,7 +432,7 @@
         makePalm(x + (Math.random()-0.5)*2, -0.6+jitter, 0.85+Math.random()*0.4);
     }
 
-    /* ======================= STREET LAMPS ======================= */
+    /* ======================= LAMPS ======================= */
     const poleMat = mat('poleMat', '#2b2b2b');
     const headMat = new BABYLON.StandardMaterial('headMat', scene);
     headMat.diffuseColor = BABYLON.Color3.FromHexString('#F4E9D8');
@@ -401,11 +443,9 @@
         pole.position.set(x,1.7,z);
         pole.material = poleMat;
         shadowGen.addShadowCaster(pole);
-
         const head = BABYLON.MeshBuilder.CreateSphere('lampHead', {diameter:0.32}, scene);
         head.position.set(x,3.45,z);
         head.material = headMat;
-
         const light = new BABYLON.PointLight('lampLight', new BABYLON.Vector3(x,3.4,z), scene);
         light.diffuse = BABYLON.Color3.FromHexString('#E8A15B');
         light.intensity = 0.5;
@@ -459,7 +499,6 @@
         faceMat.useAlphaFromDiffuseTexture = true;
         faceMat.specularColor = BABYLON.Color3.Black();
         face.material = faceMat;
-
         return body;
     }
     let bx = -WORLD_HALF_LENGTH+3;
@@ -506,65 +545,110 @@
         return pos;
     }
 
-    /* ======================= ZONBI (AI) ======================= */
-    const zombieMat = mat('zombieMat', '#5C6B4F');
+    /* ======================= ZONBI FACTORY ======================= */
+    const zombieMatWalker = mat('zombieMatWalker', '#5C6B4F');
+    const zombieMatRunner = mat('zombieMatRunner', '#7A3B34');
     const zombieHeadMat = mat('zombieHeadMat', '#7A8567');
-    const zombie = new BABYLON.TransformNode('zombie', scene);
 
-    const zBody = BABYLON.MeshBuilder.CreateCapsule('zBody', {height:1.5, radius:0.28}, scene);
-    zBody.position.y = 0.9;
-    zBody.material = zombieMat;
-    zBody.parent = zombie;
-    shadowGen.addShadowCaster(zBody);
+    function makeZombie(isRunner){
+        const root = new BABYLON.TransformNode('zombie', scene);
+        const bodyMat = isRunner ? zombieMatRunner : zombieMatWalker;
 
-    const zHead = BABYLON.MeshBuilder.CreateSphere('zHead', {diameter:0.42}, scene);
-    zHead.position.y = 1.85;
-    zHead.material = zombieHeadMat;
-    zHead.parent = zombie;
-    shadowGen.addShadowCaster(zHead);
+        const body = BABYLON.MeshBuilder.CreateCapsule('zBody', {height:1.5, radius:0.28}, scene);
+        body.position.y = 0.9;
+        body.material = bodyMat;
+        body.parent = root;
+        shadowGen.addShadowCaster(body);
 
-    const armMat = zombieMat;
-    const zArmL = BABYLON.MeshBuilder.CreateCylinder('zArmL', {diameter:0.13, height:0.85, tessellation:6}, scene);
-    zArmL.position.set(-0.38, 1.25, 0);
-    zArmL.rotation.z = Math.PI/2.3;
-    zArmL.material = armMat;
-    zArmL.parent = zombie;
-    const zArmR = zArmL.clone('zArmR');
-    zArmR.position.x = 0.38;
-    zArmR.rotation.z = -Math.PI/2.3;
-    zArmR.parent = zombie;
+        const head = BABYLON.MeshBuilder.CreateSphere('zHead', {diameter:0.42}, scene);
+        head.position.y = 1.85;
+        head.material = zombieHeadMat;
+        head.parent = root;
+        shadowGen.addShadowCaster(head);
 
-    function respawnZombie(){
-        const side = Math.random() < 0.5 ? -1 : 1;
-        const x = camera.position.x + side*(18 + Math.random()*20);
-        const clampedX = Math.max(-WORLD_HALF_LENGTH+2, Math.min(WORLD_HALF_LENGTH-2, x));
-        zombie.position.set(clampedX, 0, 2.2 + (Math.random()-0.5)*3);
+        const armL = BABYLON.MeshBuilder.CreateCylinder('zArmL', {diameter:0.13, height:0.85, tessellation:6}, scene);
+        armL.position.set(-0.38, 1.25, 0);
+        armL.rotation.z = Math.PI/2.3;
+        armL.material = bodyMat;
+        armL.parent = root;
+        const armR = armL.clone('zArmR');
+        armR.position.x = 0.38;
+        armR.rotation.z = -Math.PI/2.3;
+        armR.parent = root;
+
+        return {
+            root, body, armL, armR,
+            speed: isRunner ? 3.6 : 1.9 + Math.random()*0.5,
+            walkT: Math.random()*10,
+            stunned: 0,
+            isRunner
+        };
     }
-    respawnZombie();
 
-    let zombieStunned = 0;
-    let zombieWalkT = 0;
-    const ZOMBIE_SPEED = 2.3;
+    const ZOMBIE_COUNT = 4;
+    let zombies = [];
+    function spawnAllZombies(){
+        zombies.forEach(z => z.root.dispose());
+        zombies = [];
+        for(let i=0;i<ZOMBIE_COUNT;i++){
+            const isRunner = i === ZOMBIE_COUNT-1; // last one is the fast one
+            const z = makeZombie(isRunner);
+            respawnZombie(z);
+            zombies.push(z);
+        }
+    }
+    function respawnZombie(z){
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const x = camera.position.x + side*(16 + Math.random()*24);
+        const clampedX = Math.max(-WORLD_HALF_LENGTH+2, Math.min(WORLD_HALF_LENGTH-2, x));
+        z.root.position.set(clampedX, 0, 2.2 + (Math.random()-0.5)*3);
+    }
+
     const HIT_RANGE = 1.15;
-    const HIT_COOLDOWN = 1.4;
+    const HIT_COOLDOWN = 1.2;
     let hitCooldownTimer = 0;
 
     /* ======================= PLAYER STATE ======================= */
     let health = 100;
+    let survivalTime = 0;
+    let gameOver = false;
     const hpFill = document.getElementById('hp-fill');
-    const zDistLabel = document.getElementById('zombie-dist');
+    const survivalLabel = document.getElementById('survival-timer');
+    const zCountLabel = document.getElementById('zombie-count');
     const hitFlash = document.getElementById('hit-flash');
+    const gameoverEl = document.getElementById('gameover');
+    const gameoverStat = document.getElementById('gameover-stat');
 
-    function applyHit(){
-        health = Math.max(0, health - 15);
+    function applyHit(z){
+        health = Math.max(0, health - (z.isRunner ? 22 : 14));
         hpFill.style.width = health + '%';
         hitFlash.classList.add('active');
         setTimeout(()=>hitFlash.classList.remove('active'), 130);
-        zombieStunned = 0.6;
-        respawnZombie();
+        z.stunned = 0.6;
+        respawnZombie(z);
+        if(health <= 0 && !gameOver){
+            triggerGameOver();
+        }
     }
 
-    /* ======================= CONTROLS: KEYBOARD ======================= */
+    function triggerGameOver(){
+        gameOver = true;
+        gameoverStat.textContent = 'Ou siviv ' + Math.floor(survivalTime) + ' segond';
+        gameoverEl.classList.add('show');
+    }
+    function resetGame(){
+        health = 100;
+        survivalTime = 0;
+        gameOver = false;
+        hpFill.style.width = '100%';
+        gameoverEl.classList.remove('show');
+        camera.position.set(0, EYE_HEIGHT, 6);
+        yaw = Math.PI; pitch = 0;
+        spawnAllZombies();
+    }
+    document.getElementById('restart-btn').addEventListener('click', resetGame);
+
+    /* ======================= CONTROLS ======================= */
     const keys = {};
     window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()] = true; });
     window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
@@ -584,48 +668,26 @@
         pitch = Math.max(-1.1, Math.min(1.1, pitch));
     });
 
-    /* ======================= TOUCH CONTROLS ======================= */
-    let moveVec = {x:0,y:0};
     let running = false;
+    const dpadState = {up:false, down:false, left:false, right:false};
     (function setupTouch(){
-        const joyZone = document.getElementById('joystick-zone');
-        const joyBase = document.getElementById('joystick-base');
-        const joyKnob = document.getElementById('joystick-knob');
         const lookZone = document.getElementById('look-zone');
         const runBtn = document.getElementById('run-btn');
 
-        let joyId=null, joyOrigin={x:0,y:0};
-        joyZone.addEventListener('touchstart', e=>{
-            const t = e.changedTouches[0];
-            joyId = t.identifier;
-            joyOrigin = {x:t.clientX, y:t.clientY};
-            joyBase.style.display='block';
-            joyBase.style.left = (t.clientX-48)+'px';
-            joyBase.style.top = (t.clientY-48)+'px';
-        });
-        joyZone.addEventListener('touchmove', e=>{
-            for(const t of e.changedTouches){
-                if(t.identifier!==joyId) continue;
-                let dx=t.clientX-joyOrigin.x, dy=t.clientY-joyOrigin.y;
-                const max=44;
-                const len=Math.hypot(dx,dy);
-                if(len>max){ dx=dx/len*max; dy=dy/len*max; }
-                joyKnob.style.left = (28+dx)+'px';
-                joyKnob.style.top = (28+dy)+'px';
-                moveVec.x = dx/max;
-                moveVec.y = dy/max;
-            }
-        });
-        function endJoy(e){
-            for(const t of e.changedTouches){
-                if(t.identifier!==joyId) continue;
-                joyId=null; moveVec={x:0,y:0};
-                joyBase.style.display='none';
-                joyKnob.style.left='28px'; joyKnob.style.top='28px';
-            }
+        function bindDpadBtn(id, key){
+            const el = document.getElementById(id);
+            const press = e=>{ e.preventDefault(); dpadState[key]=true; el.classList.add('active'); };
+            const release = e=>{ dpadState[key]=false; el.classList.remove('active'); };
+            el.addEventListener('touchstart', press, {passive:false});
+            el.addEventListener('touchend', release);
+            el.addEventListener('touchcancel', release);
+            el.addEventListener('mousedown', press);
+            window.addEventListener('mouseup', release);
         }
-        joyZone.addEventListener('touchend', endJoy);
-        joyZone.addEventListener('touchcancel', endJoy);
+        bindDpadBtn('dpad-up','up');
+        bindDpadBtn('dpad-down','down');
+        bindDpadBtn('dpad-left','left');
+        bindDpadBtn('dpad-right','right');
 
         let lookId=null, lastLX=0, lastLY=0;
         lookZone.addEventListener('touchstart', e=>{
@@ -652,11 +714,12 @@
     let bobT = 0;
     const compassEl = document.getElementById('compass');
 
+    spawnAllZombies();
+
     scene.onBeforeRenderObservable.add(()=>{
         const dt = Math.min(engine.getDeltaTime()/1000, 0.05);
         const t = performance.now()/1000;
 
-        /* ocean waves */
         for(let i=0;i<oceanBaseY.length;i++){
             const x = oceanPositions[i*3];
             const z = oceanPositions[i*3+2];
@@ -666,19 +729,28 @@
         ocean.updateVerticesData(BABYLON.VertexBuffer.PositionKind, oceanPositions);
         BABYLON.VertexData.ComputeNormals(oceanPositions, ocean.getIndices(), ocean.getVerticesData(BABYLON.VertexBuffer.NormalKind));
 
-        /* boat drift */
         boat.position.x += dt*0.6;
         if(boat.position.x > 60) boat.position.x = -60;
         boat.position.y = 0.2 + Math.sin(t*1.4)*0.08;
         boat.rotation.z = Math.sin(t*1.4)*0.05;
 
-        /* player movement */
+        if(gameOver){
+            compassEl.style.setProperty('--rot', (yaw*180/Math.PI)+'deg');
+            return;
+        }
+
+        survivalTime += dt;
+        survivalLabel.textContent = 'Tan siviv: ' + Math.floor(survivalTime) + 's';
+
         const keyForward = (keys['z']||keys['w']||keys['arrowup']) ? 1 : (keys['s']||keys['arrowdown']) ? -1 : 0;
         const keyStrafe = (keys['d']||keys['arrowright']) ? 1 : (keys['q']||keys['a']||keys['arrowleft']) ? -1 : 0;
         const runKey = keys['shift'] || running;
 
-        const forward = keyForward !== 0 ? keyForward : -moveVec.y;
-        const strafe = keyStrafe !== 0 ? keyStrafe : moveVec.x;
+        const dpadForward = (dpadState.up?1:0) - (dpadState.down?1:0);
+        const dpadStrafe = (dpadState.right?1:0) - (dpadState.left?1:0);
+
+        const forward = keyForward !== 0 ? keyForward : dpadForward;
+        const strafe = keyStrafe !== 0 ? keyStrafe : dpadStrafe;
 
         const speed = (runKey ? 6.4 : 3.0) * dt;
         const moving = Math.abs(forward) > 0.05 || Math.abs(strafe) > 0.05;
@@ -696,33 +768,37 @@
         camera.rotation.y = yaw;
         camera.rotation.x = pitch;
 
-        /* zombie AI: chase player */
         if(hitCooldownTimer > 0) hitCooldownTimer -= dt;
-        if(zombieStunned > 0){
-            zombieStunned -= dt;
-        } else {
-            const zdx = camera.position.x - zombie.position.x;
-            const zdz = camera.position.z - zombie.position.z;
-            const dist = Math.hypot(zdx, zdz);
-            if(dist > 0.01){
-                const nx = zdx/dist, nz = zdz/dist;
-                zombie.position.x += nx * ZOMBIE_SPEED * dt;
-                zombie.position.z += nz * ZOMBIE_SPEED * dt;
-                clampToWalkable(zombie.position);
-                zombie.rotation.y = Math.atan2(nx, nz);
-                zombieWalkT += dt*7;
+        let closestDist = Infinity;
+        let activeCount = 0;
+
+        for(const z of zombies){
+            if(z.stunned > 0){
+                z.stunned -= dt;
+            } else {
+                const zdx = camera.position.x - z.root.position.x;
+                const zdz = camera.position.z - z.root.position.z;
+                const dist = Math.hypot(zdx, zdz);
+                if(dist > 0.01){
+                    const nx = zdx/dist, nz = zdz/dist;
+                    z.root.position.x += nx * z.speed * dt;
+                    z.root.position.z += nz * z.speed * dt;
+                    clampToWalkable(z.root.position);
+                    z.root.rotation.y = Math.atan2(nx, nz);
+                    z.walkT += dt*7;
+                }
+                if(dist < closestDist) closestDist = dist;
+                activeCount++;
+                if(dist < HIT_RANGE && hitCooldownTimer <= 0){
+                    hitCooldownTimer = HIT_COOLDOWN;
+                    applyHit(z);
+                }
             }
-            zDistLabel.textContent = 'Zonbi: ' + dist.toFixed(1) + 'm';
-            if(dist < HIT_RANGE && hitCooldownTimer <= 0){
-                hitCooldownTimer = HIT_COOLDOWN;
-                applyHit();
-            }
+            z.body.position.y = 0.9 + Math.sin(z.walkT)*0.03;
+            z.armL.rotation.x = Math.sin(z.walkT)*0.5;
+            z.armR.rotation.x = -Math.sin(z.walkT)*0.5;
         }
-        /* zombie walk-cycle bob + arm sway */
-        zombie.position.y = 0;
-        zBody.position.y = 0.9 + Math.sin(zombieWalkT)*0.03;
-        zArmL.rotation.x = Math.sin(zombieWalkT)*0.5;
-        zArmR.rotation.x = -Math.sin(zombieWalkT)*0.5;
+        zCountLabel.textContent = 'Pi pre: ' + (closestDist===Infinity? '—' : closestDist.toFixed(1)+'m') + ' (' + activeCount + '/' + ZOMBIE_COUNT + ')';
 
         compassEl.style.setProperty('--rot', (yaw*180/Math.PI)+'deg');
     });
