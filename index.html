@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Boulevard — Kap-Ayisyen 3D (Zonbi)</title>
+<style>
+    :root{
+        --gold:#D9A441;
+        --terracotta:#C1502E;
+        --teal:#2F7A6F;
+        --deepblue:#12233F;
+        --blood:#B0242E;
+        --panel-bg:rgba(10,14,20,0.55);
+        --panel-border:rgba(217,164,65,0.35);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{
+        width:100%;height:100%;overflow:hidden;
+        background:#0b1220;
+        font-family:'Georgia','Times New Roman',serif;
+        touch-action:none;
+    }
+    canvas{display:block;outline:none;touch-action:none;}
+
+    #loading{
+        position:fixed;inset:0;
+        background:linear-gradient(180deg,#1B2A4A 0%, #2B4C7E 45%, #C1502E 100%);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        z-index:50;
+        transition:opacity .8s ease;
+        color:#F4E9D8;
+    }
+    #loading h1{
+        font-size:1.8rem;letter-spacing:3px;font-weight:400;
+        text-transform:uppercase;
+        text-shadow:0 2px 12px rgba(0,0,0,.4);
+        margin-bottom:14px;
+    }
+    #loading .bar-track{
+        width:220px;height:3px;background:rgba(255,255,255,.25);border-radius:2px;overflow:hidden;
+    }
+    #loading .bar-fill{
+        width:0%;height:100%;background:var(--gold);
+        animation:load 1.4s ease forwards;
+    }
+    @keyframes load{ to{ width:100%; } }
+    #loading p{
+        margin-top:14px;font-size:.75rem;letter-spacing:2px;opacity:.75;
+        font-family:'Helvetica Neue',Arial,sans-serif;
+    }
+
+    #hud{
+        position:fixed;top:18px;left:18px;z-index:10;
+        color:#F4E9D8;
+        font-family:'Helvetica Neue',Arial,sans-serif;
+        pointer-events:none;
+        user-select:none;
+    }
+    #hud .title-card{
+        background:var(--panel-bg);
+        border:1px solid var(--panel-border);
+        border-left:3px solid var(--gold);
+        backdrop-filter:blur(6px);
+        padding:12px 18px;
+        border-radius:6px;
+        max-width:260px;
+    }
+    #hud .eyebrow{
+        font-size:.62rem;letter-spacing:3px;text-transform:uppercase;
+        color:var(--gold);margin-bottom:4px;font-weight:600;
+    }
+    #hud h1{
+        font-family:'Georgia',serif;
+        font-size:1.15rem;font-weight:400;letter-spacing:1px;
+        margin-bottom:6px;
+    }
+    #hud .desc{
+        font-size:.72rem;line-height:1.4;opacity:.8;
+    }
+
+    #stat-panel{
+        position:fixed;top:18px;right:18px;z-index:10;
+        color:#F4E9D8;
+        font-family:'Helvetica Neue',Arial,sans-serif;
+        background:var(--panel-bg);
+        border:1px solid var(--panel-border);
+        border-right:3px solid var(--blood);
+        backdrop-filter:blur(6px);
+        padding:12px 16px;border-radius:6px;
+        min-width:150px;
+        pointer-events:none;user-select:none;
+    }
+    #stat-panel .eyebrow{
+        font-size:.6rem;letter-spacing:2px;text-transform:uppercase;
+        color:var(--blood);margin-bottom:6px;font-weight:600;
+    }
+    #hp-track{
+        width:100%;height:8px;background:rgba(255,255,255,.15);
+        border-radius:4px;overflow:hidden;margin-bottom:6px;
+    }
+    #hp-fill{
+        width:100%;height:100%;background:linear-gradient(90deg,var(--blood),var(--gold));
+        transition:width .25s ease;
+    }
+    #zombie-dist{font-size:.72rem;opacity:.85;}
+
+    #compass{
+        position:fixed;top:100px;right:18px;z-index:10;
+        width:44px;height:44px;border-radius:50%;
+        background:var(--panel-bg);
+        border:1px solid var(--panel-border);
+        backdrop-filter:blur(6px);
+        display:flex;align-items:center;justify-content:center;
+        color:var(--gold);font-size:.6rem;letter-spacing:1px;
+        font-family:'Helvetica Neue',Arial,sans-serif;
+        pointer-events:none;
+        user-select:none;
+    }
+    #compass::before{
+        content:'';
+        position:absolute;top:5px;left:50%;
+        width:2px;height:7px;background:var(--terracotta);
+        transform-origin:50% 17px;
+        transform:translateX(-50%) rotate(var(--rot,0deg));
+    }
+
+    #vignette{
+        position:fixed;inset:0;pointer-events:none;z-index:5;
+        box-shadow:inset 0 0 160px 40px rgba(0,0,0,0.55);
+    }
+    #hit-flash{
+        position:fixed;inset:0;pointer-events:none;z-index:6;
+        background:rgba(176,36,46,0);
+        transition:background .12s ease;
+    }
+    #hit-flash.active{ background:rgba(176,36,46,0.38); }
+
+    #controls-hint{
+        position:fixed;bottom:18px;left:18px;z-index:10;
+        color:#F4E9D8;
+        font-family:'Helvetica Neue',Arial,sans-serif;
+        font-size:.7rem;letter-spacing:.5px;
+        background:var(--panel-bg);
+        border:1px solid var(--panel-border);
+        padding:10px 14px;border-radius:6px;
+        backdrop-filter:blur(6px);
+        pointer-events:none;
+        line-height:1.6;
+        user-select:none;
+    }
+    #controls-hint b{color:var(--gold);}
+
+    #mobile-controls{
+        position:fixed;inset:0;z-index:8;pointer-events:none;display:none;
+    }
+    #joystick-zone, #look-zone{
+        position:absolute;bottom:0;width:50%;height:55%;pointer-events:auto;
+    }
+    #joystick-zone{left:0;}
+    #look-zone{right:0;}
+    #joystick-base{
+        position:absolute;width:96px;height:96px;border-radius:50%;
+        border:1px solid var(--panel-border);
+        background:var(--panel-bg);
+        display:none;
+    }
+    #joystick-knob{
+        position:absolute;width:40px;height:40px;border-radius:50%;
+        background:rgba(217,164,65,0.55);
+        top:28px;left:28px;
+    }
+    #run-btn{
+        position:fixed;bottom:22px;right:22px;z-index:11;
+        width:64px;height:64px;border-radius:50%;
+        background:var(--panel-bg);border:1px solid var(--panel-border);
+        color:var(--gold);font-family:'Helvetica Neue',Arial,sans-serif;
+        font-size:.65rem;letter-spacing:1px;
+        display:none;align-items:center;justify-content:center;
+        pointer-events:auto;user-select:none;
+    }
+    #run-btn.active{background:rgba(217,164,65,0.35);}
+
+    @media (max-width:820px){
+        #controls-hint{display:none;}
+        #mobile-controls{display:block;}
+        #run-btn{display:flex;}
+        #hud .title-card{max-width:190px;padding:10px 14px;}
+        #hud h1{font-size:1rem;}
+        #stat-panel{min-width:120px;padding:10px 12px;}
+        #compass{top:90px;}
+    }
+</style>
+</head>
+<body>
+
+<div id="loading">
+    <h1>Boulevard · Kap-Ayisyen</h1>
+    <div class="bar-track"><div class="bar-fill"></div></div>
+    <p>AP CHAJE ZONBI A…</p>
+</div>
+
+<div id="hud">
+    <div class="title-card">
+        <div class="eyebrow">Prototip 3D · Babylon.js</div>
+        <h1>Boulevard, Kap-Ayisyen</h1>
+        <div class="desc">Gen yon zonbi k ap chase w kounye a — sa se premye tès mekanik siviv la.</div>
+    </div>
+</div>
+
+<div id="stat-panel">
+    <div class="eyebrow">Sante</div>
+    <div id="hp-track"><div id="hp-fill"></div></div>
+    <div id="zombie-dist">Zonbi: —</div>
+</div>
+
+<div id="controls-hint">
+    <b>Z Q S D</b> oswa flèch — deplase&nbsp;&nbsp;|&nbsp;&nbsp;<b>Shift</b> — kouri<br>
+    <b>Klike + trennen</b> — vire kamera a
+</div>
+
+<div id="compass">N</div>
+<div id="vignette"></div>
+<div id="hit-flash"></div>
+
+<div id="mobile-controls">
+    <div id="joystick-zone">
+        <div id="joystick-base"><div id="joystick-knob"></div></div>
+    </div>
+    <div id="look-zone"></div>
+</div>
+<div id="run-btn">KOURI</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script>
+(function(){
+    "use strict";
+
+    /* ======================= SETUP ======================= */
+    const canvas = document.getElementById('renderCanvas');
+    const engine = new BABYLON.Engine(canvas, true, {stencil:true}, true);
+    const scene = new BABYLON.Scene(engine);
+    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+    scene.fogColor = new BABYLON.Color3(0.56, 0.66, 0.75);
+    scene.fogDensity = 0.012;
+    scene.collisionsEnabled = false;
+
+    const EYE_HEIGHT = 1.7;
+    const camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, EYE_HEIGHT, 6), scene);
+    camera.minZ = 0.05;
+    camera.maxZ = 800;
+    camera.fov = 1.15; // ~66deg
+    camera.inputs.clear(); // fully manual movement/look
+
+    /* ======================= WORLD LAYOUT CONSTANTS ======================= */
+    const WORLD_HALF_LENGTH = 70;
+    const OCEAN_EDGE_Z = -2.6;
+    const BUILDING_EDGE_Z = 7.4;
+
+    /* ======================= SKY (dusk gradient) ======================= */
+    (function buildSky(){
+        const skyTex = new BABYLON.DynamicTexture('skyTex', {width:8, height:512}, scene, false);
+        const ctx = skyTex.getContext();
+        const grad = ctx.createLinearGradient(0,0,0,512);
+        grad.addColorStop(0, '#1B2A4A');
+        grad.addColorStop(0.45, '#8A6FA0');
+        grad.addColorStop(1, '#E8A15B');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0,0,8,512);
+        skyTex.update();
+
+        const skyMat = new BABYLON.StandardMaterial('skyMat', scene);
+        skyMat.emissiveTexture = skyTex;
+        skyMat.diffuseColor = BABYLON.Color3.Black();
+        skyMat.specularColor = BABYLON.Color3.Black();
+        skyMat.backFaceCulling = false;
+        skyMat.disableLighting = true;
+
+        const sky = BABYLON.MeshBuilder.CreateSphere('sky', {diameter:900, segments:16}, scene);
+        sky.material = skyMat;
+        sky.infiniteDistance = true;
+    })();
+
+    /* ======================= LIGHTING ======================= */
+    const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0,1,0), scene);
+    hemi.diffuse = new BABYLON.Color3(0.91,0.79,0.63);
+    hemi.groundColor = new BABYLON.Color3(0.11,0.16,0.29);
+    hemi.intensity = 0.65;
+
+    const sun = new BABYLON.DirectionalLight('sun', new BABYLON.Vector3(0.6,-0.75,-0.3), scene);
+    sun.position = new BABYLON.Vector3(-40,35,20);
+    sun.diffuse = new BABYLON.Color3(1,0.81,0.58);
+    sun.intensity = 1.1;
+
+    const shadowGen = new BABYLON.ShadowGenerator(2048, sun);
+    shadowGen.useBlurExponentialShadowMap = true;
+    shadowGen.blurKernel = 16;
+
+    const fillLight = new BABYLON.DirectionalLight('fill', new BABYLON.Vector3(-0.6,-0.5,0.4), scene);
+    fillLight.diffuse = new BABYLON.Color3(0.25,0.42,0.54);
+    fillLight.intensity = 0.3;
+
+    function mat(name, hex){
+        const m = new BABYLON.StandardMaterial(name, scene);
+        m.diffuseColor = BABYLON.Color3.FromHexString(hex);
+        m.specularColor = new BABYLON.Color3(0.05,0.05,0.05);
+        return m;
+    }
+
+    /* ======================= GROUND / PROMENADE ======================= */
+    const ground = BABYLON.MeshBuilder.CreateGround('ground', {width:WORLD_HALF_LENGTH*2+40, height:20}, scene);
+    ground.position.set(0,0,2.2);
+    ground.material = mat('groundMat', '#9A8F7E');
+    ground.receiveShadows = true;
+
+    for(let x=-WORLD_HALF_LENGTH; x<WORLD_HALF_LENGTH; x+=6){
+        const line = BABYLON.MeshBuilder.CreateGround('line', {width:2.4, height:0.22}, scene);
+        line.position.set(x, 0.01, 2.2);
+        line.material = mat('lineMat_'+x, '#F4E9D8');
+    }
+
+    /* ======================= OCEAN ======================= */
+    const ocean = BABYLON.MeshBuilder.CreateGround('ocean', {
+        width: WORLD_HALF_LENGTH*2+200, height:260, subdivisions:60, updatable:true
+    }, scene);
+    ocean.position.set(0, -0.05, OCEAN_EDGE_Z-130);
+    const oceanMat = new BABYLON.StandardMaterial('oceanMat', scene);
+    oceanMat.diffuseColor = BABYLON.Color3.FromHexString('#0E5C6B');
+    oceanMat.alpha = 0.92;
+    oceanMat.specularColor = new BABYLON.Color3(0.3,0.3,0.3);
+    ocean.material = oceanMat;
+    ocean.receiveShadows = true;
+
+    const oceanPositions = ocean.getVerticesData(BABYLON.VertexBuffer.PositionKind);
+    const oceanBaseY = new Float32Array(oceanPositions.length/3);
+    for(let i=0;i<oceanBaseY.length;i++){ oceanBaseY[i] = oceanPositions[i*3+1]; }
+
+    /* seawall */
+    const wall = BABYLON.MeshBuilder.CreateBox('wall', {width:WORLD_HALF_LENGTH*2+40, height:0.6, depth:0.4}, scene);
+    wall.position.set(0,0.3,OCEAN_EDGE_Z);
+    wall.material = mat('wallMat', '#C9C2B4');
+    wall.receiveShadows = true;
+    shadowGen.addShadowCaster(wall);
+
+    const postMat = mat('postMat', '#3a3a3a');
+    for(let x=-WORLD_HALF_LENGTH; x<=WORLD_HALF_LENGTH; x+=3){
+        const post = BABYLON.MeshBuilder.CreateCylinder('post', {diameter:0.1, height:0.9, tessellation:6}, scene);
+        post.position.set(x,0.9,OCEAN_EDGE_Z);
+        post.material = postMat;
+        shadowGen.addShadowCaster(post);
+    }
+
+    /* ======================= PALM TREES ======================= */
+    const trunkMat = mat('trunkMat', '#6B4A32');
+    const leafMat = mat('leafMat', '#2E6E4E');
+    leafMat.backFaceCulling = false;
+
+    function makePalm(x,z,scale){
+        const root = new BABYLON.TransformNode('palm', scene);
+        root.position.set(x,0,z);
+
+        const trunk = BABYLON.MeshBuilder.CreateCylinder('trunk', {
+            diameterTop:0.18*scale, diameterBottom:0.32*scale, height:3.2*scale, tessellation:6
+        }, scene);
+        trunk.position.y = 1.6*scale;
+        trunk.rotation.z = (Math.random()-0.5)*0.12;
+        trunk.material = trunkMat;
+        trunk.parent = root;
+        shadowGen.addShadowCaster(trunk);
+
+        const leafCount = 6;
+        for(let i=0;i<leafCount;i++){
+            const leaf = BABYLON.MeshBuilder.CreateCylinder('leaf', {
+                diameterTop:0, diameterBottom:0.44*scale, height:1.7*scale, tessellation:4
+            }, scene);
+            leaf.position.y = 3.15*scale;
+            leaf.rotation.z = Math.PI/2.3;
+            leaf.rotation.y = (i/leafCount)*Math.PI*2;
+            leaf.translate(BABYLON.Axis.Z, 0.4*scale, BABYLON.Space.LOCAL);
+            leaf.material = leafMat;
+            leaf.parent = root;
+            shadowGen.addShadowCaster(leaf);
+        }
+        return root;
+    }
+    for(let x=-WORLD_HALF_LENGTH+4; x<WORLD_HALF_LENGTH; x+=7){
+        const jitter = (Math.random()-0.5)*1.4;
+        makePalm(x + (Math.random()-0.5)*2, -0.6+jitter, 0.85+Math.random()*0.4);
+    }
+
+    /* ======================= STREET LAMPS ======================= */
+    const poleMat = mat('poleMat', '#2b2b2b');
+    const headMat = new BABYLON.StandardMaterial('headMat', scene);
+    headMat.diffuseColor = BABYLON.Color3.FromHexString('#F4E9D8');
+    headMat.emissiveColor = BABYLON.Color3.FromHexString('#E8A15B');
+
+    function makeLamp(x,z){
+        const pole = BABYLON.MeshBuilder.CreateCylinder('pole', {diameterTop:0.09, diameterBottom:0.12, height:3.4, tessellation:6}, scene);
+        pole.position.set(x,1.7,z);
+        pole.material = poleMat;
+        shadowGen.addShadowCaster(pole);
+
+        const head = BABYLON.MeshBuilder.CreateSphere('lampHead', {diameter:0.32}, scene);
+        head.position.set(x,3.45,z);
+        head.material = headMat;
+
+        const light = new BABYLON.PointLight('lampLight', new BABYLON.Vector3(x,3.4,z), scene);
+        light.diffuse = BABYLON.Color3.FromHexString('#E8A15B');
+        light.intensity = 0.5;
+        light.range = 8;
+    }
+    for(let x=-WORLD_HALF_LENGTH+2; x<WORLD_HALF_LENGTH; x+=10){
+        makeLamp(x, -1.9);
+    }
+
+    /* ======================= BUILDINGS ======================= */
+    const buildingColors = ['#C1502E','#D9A441','#2F7A6F','#E17A72','#EFD9AE','#B0664A','#3C7C93'];
+    let colorIdx = 0;
+
+    function windowTexture(cols, rows){
+        const texW = 256, texH = 256;
+        const tex = new BABYLON.DynamicTexture('winTex', {width:texW, height:texH}, scene, false);
+        tex.hasAlpha = true;
+        const ctx = tex.getContext();
+        ctx.clearRect(0,0,texW,texH);
+        const cw = texW/cols, ch = texH/rows;
+        ctx.fillStyle = '#1B2A4A';
+        for(let c=0;c<cols;c++){
+            for(let r=0;r<rows;r++){
+                const pad = Math.min(cw,ch)*0.22;
+                ctx.fillRect(c*cw+pad, r*ch+pad, cw-pad*2, ch-pad*2);
+            }
+        }
+        tex.update();
+        return tex;
+    }
+
+    function makeBuilding(x,z,w,h,d,colorHex){
+        const body = BABYLON.MeshBuilder.CreateBox('bldBody', {width:w, height:h, depth:d}, scene);
+        body.position.set(x, h/2, z);
+        body.material = mat('bldMat_'+x, colorHex);
+        body.receiveShadows = true;
+        shadowGen.addShadowCaster(body);
+
+        const trim = BABYLON.MeshBuilder.CreateBox('bldTrim', {width:w+0.15, height:0.18, depth:d+0.15}, scene);
+        trim.position.set(x, h+0.09, z);
+        trim.material = mat('trimMat_'+x, '#F4E9D8');
+
+        const cols = Math.max(1, Math.floor(w/1.3));
+        const rows = Math.max(1, Math.floor(h/1.6));
+        const face = BABYLON.MeshBuilder.CreatePlane('bldFace', {width:w*0.94, height:h*0.9}, scene);
+        face.position.set(x, h*0.5, z - d/2 - 0.03);
+        face.rotation.y = Math.PI;
+        const faceMat = new BABYLON.StandardMaterial('faceMat_'+x, scene);
+        faceMat.diffuseTexture = windowTexture(cols, rows);
+        faceMat.diffuseTexture.hasAlpha = true;
+        faceMat.useAlphaFromDiffuseTexture = true;
+        faceMat.specularColor = BABYLON.Color3.Black();
+        face.material = faceMat;
+
+        return body;
+    }
+    let bx = -WORLD_HALF_LENGTH+3;
+    while(bx < WORLD_HALF_LENGTH){
+        const w = 5 + Math.random()*3;
+        const h = 4 + Math.random()*4;
+        const d = 4 + Math.random()*1.5;
+        makeBuilding(bx + w/2, BUILDING_EDGE_Z + d/2, w, h, d, buildingColors[colorIdx % buildingColors.length]);
+        bx += w + 0.4;
+        colorIdx++;
+    }
+
+    /* ======================= MOUNTAINS ======================= */
+    const mountainMat = mat('mountainMat', '#4A5A73');
+    const mountainZ = BUILDING_EDGE_Z + 55;
+    for(let x=-160; x<160; x+=22){
+        const s = 22 + Math.random()*18;
+        const m = BABYLON.MeshBuilder.CreateCylinder('mtn', {diameterTop:0, diameterBottom:s, height:s*1.3, tessellation:5}, scene);
+        m.position.set(x + (Math.random()-0.5)*14, s*0.65, mountainZ + (Math.random()-0.5)*20);
+        m.rotation.y = Math.random()*Math.PI;
+        m.material = mountainMat;
+    }
+
+    /* ======================= BOAT ======================= */
+    const boat = new BABYLON.TransformNode('boat', scene);
+    {
+        const hull = BABYLON.MeshBuilder.CreateBox('hull', {width:2.2, height:0.5, depth:0.7}, scene);
+        hull.material = mat('hullMat', '#1B2A4A');
+        hull.parent = boat;
+        const sailMat = mat('sailMat', '#F4E9D8');
+        sailMat.backFaceCulling = false;
+        const sail = BABYLON.MeshBuilder.CreateCylinder('sail', {diameterTop:0, diameterBottom:1.2, height:1.6, tessellation:3}, scene);
+        sail.rotation.z = Math.PI/2;
+        sail.position.set(0,1.1,0);
+        sail.material = sailMat;
+        sail.parent = boat;
+    }
+    boat.position.set(-40, 0.2, OCEAN_EDGE_Z-40);
+
+    /* ======================= BOUNDS ======================= */
+    function clampToWalkable(pos){
+        pos.x = Math.max(-WORLD_HALF_LENGTH+1, Math.min(WORLD_HALF_LENGTH-1, pos.x));
+        pos.z = Math.max(OCEAN_EDGE_Z+0.6, Math.min(BUILDING_EDGE_Z-0.6, pos.z));
+        return pos;
+    }
+
+    /* ======================= ZONBI (AI) ======================= */
+    const zombieMat = mat('zombieMat', '#5C6B4F');
+    const zombieHeadMat = mat('zombieHeadMat', '#7A8567');
+    const zombie = new BABYLON.TransformNode('zombie', scene);
+
+    const zBody = BABYLON.MeshBuilder.CreateCapsule('zBody', {height:1.5, radius:0.28}, scene);
+    zBody.position.y = 0.9;
+    zBody.material = zombieMat;
+    zBody.parent = zombie;
+    shadowGen.addShadowCaster(zBody);
+
+    const zHead = BABYLON.MeshBuilder.CreateSphere('zHead', {diameter:0.42}, scene);
+    zHead.position.y = 1.85;
+    zHead.material = zombieHeadMat;
+    zHead.parent = zombie;
+    shadowGen.addShadowCaster(zHead);
+
+    const armMat = zombieMat;
+    const zArmL = BABYLON.MeshBuilder.CreateCylinder('zArmL', {diameter:0.13, height:0.85, tessellation:6}, scene);
+    zArmL.position.set(-0.38, 1.25, 0);
+    zArmL.rotation.z = Math.PI/2.3;
+    zArmL.material = armMat;
+    zArmL.parent = zombie;
+    const zArmR = zArmL.clone('zArmR');
+    zArmR.position.x = 0.38;
+    zArmR.rotation.z = -Math.PI/2.3;
+    zArmR.parent = zombie;
+
+    function respawnZombie(){
+        const side = Math.random() < 0.5 ? -1 : 1;
+        const x = camera.position.x + side*(18 + Math.random()*20);
+        const clampedX = Math.max(-WORLD_HALF_LENGTH+2, Math.min(WORLD_HALF_LENGTH-2, x));
+        zombie.position.set(clampedX, 0, 2.2 + (Math.random()-0.5)*3);
+    }
+    respawnZombie();
+
+    let zombieStunned = 0;
+    let zombieWalkT = 0;
+    const ZOMBIE_SPEED = 2.3;
+    const HIT_RANGE = 1.15;
+    const HIT_COOLDOWN = 1.4;
+    let hitCooldownTimer = 0;
+
+    /* ======================= PLAYER STATE ======================= */
+    let health = 100;
+    const hpFill = document.getElementById('hp-fill');
+    const zDistLabel = document.getElementById('zombie-dist');
+    const hitFlash = document.getElementById('hit-flash');
+
+    function applyHit(){
+        health = Math.max(0, health - 15);
+        hpFill.style.width = health + '%';
+        hitFlash.classList.add('active');
+        setTimeout(()=>hitFlash.classList.remove('active'), 130);
+        zombieStunned = 0.6;
+        respawnZombie();
+    }
+
+    /* ======================= CONTROLS: KEYBOARD ======================= */
+    const keys = {};
+    window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+    let yaw = Math.PI;
+    let pitch = 0;
+
+    let dragging = false, lastX=0, lastY=0;
+    canvas.addEventListener('mousedown', e=>{ dragging=true; lastX=e.clientX; lastY=e.clientY; });
+    window.addEventListener('mouseup', ()=>{ dragging=false; });
+    window.addEventListener('mousemove', e=>{
+        if(!dragging) return;
+        const dx = e.clientX-lastX, dy = e.clientY-lastY;
+        lastX=e.clientX; lastY=e.clientY;
+        yaw -= dx*0.0035;
+        pitch -= dy*0.0035;
+        pitch = Math.max(-1.1, Math.min(1.1, pitch));
+    });
+
+    /* ======================= TOUCH CONTROLS ======================= */
+    let moveVec = {x:0,y:0};
+    let running = false;
+    (function setupTouch(){
+        const joyZone = document.getElementById('joystick-zone');
+        const joyBase = document.getElementById('joystick-base');
+        const joyKnob = document.getElementById('joystick-knob');
+        const lookZone = document.getElementById('look-zone');
+        const runBtn = document.getElementById('run-btn');
+
+        let joyId=null, joyOrigin={x:0,y:0};
+        joyZone.addEventListener('touchstart', e=>{
+            const t = e.changedTouches[0];
+            joyId = t.identifier;
+            joyOrigin = {x:t.clientX, y:t.clientY};
+            joyBase.style.display='block';
+            joyBase.style.left = (t.clientX-48)+'px';
+            joyBase.style.top = (t.clientY-48)+'px';
+        });
+        joyZone.addEventListener('touchmove', e=>{
+            for(const t of e.changedTouches){
+                if(t.identifier!==joyId) continue;
+                let dx=t.clientX-joyOrigin.x, dy=t.clientY-joyOrigin.y;
+                const max=44;
+                const len=Math.hypot(dx,dy);
+                if(len>max){ dx=dx/len*max; dy=dy/len*max; }
+                joyKnob.style.left = (28+dx)+'px';
+                joyKnob.style.top = (28+dy)+'px';
+                moveVec.x = dx/max;
+                moveVec.y = dy/max;
+            }
+        });
+        function endJoy(e){
+            for(const t of e.changedTouches){
+                if(t.identifier!==joyId) continue;
+                joyId=null; moveVec={x:0,y:0};
+                joyBase.style.display='none';
+                joyKnob.style.left='28px'; joyKnob.style.top='28px';
+            }
+        }
+        joyZone.addEventListener('touchend', endJoy);
+        joyZone.addEventListener('touchcancel', endJoy);
+
+        let lookId=null, lastLX=0, lastLY=0;
+        lookZone.addEventListener('touchstart', e=>{
+            const t=e.changedTouches[0];
+            lookId=t.identifier; lastLX=t.clientX; lastLY=t.clientY;
+        });
+        lookZone.addEventListener('touchmove', e=>{
+            for(const t of e.changedTouches){
+                if(t.identifier!==lookId) continue;
+                const dx=t.clientX-lastLX, dy=t.clientY-lastLY;
+                lastLX=t.clientX; lastLY=t.clientY;
+                yaw -= dx*0.005;
+                pitch -= dy*0.005;
+                pitch = Math.max(-1.1, Math.min(1.1, pitch));
+            }
+        });
+        lookZone.addEventListener('touchend', e=>{ if(e.changedTouches[0].identifier===lookId) lookId=null; });
+
+        runBtn.addEventListener('touchstart', ()=>{ running=true; runBtn.classList.add('active'); });
+        runBtn.addEventListener('touchend', ()=>{ running=false; runBtn.classList.remove('active'); });
+    })();
+
+    /* ======================= MAIN LOOP ======================= */
+    let bobT = 0;
+    const compassEl = document.getElementById('compass');
+
+    scene.onBeforeRenderObservable.add(()=>{
+        const dt = Math.min(engine.getDeltaTime()/1000, 0.05);
+        const t = performance.now()/1000;
+
+        /* ocean waves */
+        for(let i=0;i<oceanBaseY.length;i++){
+            const x = oceanPositions[i*3];
+            const z = oceanPositions[i*3+2];
+            const wave = Math.sin(x*0.15 + t*1.1)*0.18 + Math.cos(z*0.12 + t*0.8)*0.14;
+            oceanPositions[i*3+1] = oceanBaseY[i] + wave;
+        }
+        ocean.updateVerticesData(BABYLON.VertexBuffer.PositionKind, oceanPositions);
+        BABYLON.VertexData.ComputeNormals(oceanPositions, ocean.getIndices(), ocean.getVerticesData(BABYLON.VertexBuffer.NormalKind));
+
+        /* boat drift */
+        boat.position.x += dt*0.6;
+        if(boat.position.x > 60) boat.position.x = -60;
+        boat.position.y = 0.2 + Math.sin(t*1.4)*0.08;
+        boat.rotation.z = Math.sin(t*1.4)*0.05;
+
+        /* player movement */
+        const keyForward = (keys['z']||keys['w']||keys['arrowup']) ? 1 : (keys['s']||keys['arrowdown']) ? -1 : 0;
+        const keyStrafe = (keys['d']||keys['arrowright']) ? 1 : (keys['q']||keys['a']||keys['arrowleft']) ? -1 : 0;
+        const runKey = keys['shift'] || running;
+
+        const forward = keyForward !== 0 ? keyForward : -moveVec.y;
+        const strafe = keyStrafe !== 0 ? keyStrafe : moveVec.x;
+
+        const speed = (runKey ? 6.4 : 3.0) * dt;
+        const moving = Math.abs(forward) > 0.05 || Math.abs(strafe) > 0.05;
+
+        if(moving){
+            const dirX = Math.sin(yaw)*forward + Math.cos(yaw)*strafe;
+            const dirZ = Math.cos(yaw)*forward - Math.sin(yaw)*strafe;
+            const len = Math.hypot(dirX,dirZ) || 1;
+            camera.position.x += (dirX/len)*speed;
+            camera.position.z += (dirZ/len)*speed;
+            clampToWalkable(camera.position);
+            bobT += dt * (runKey ? 10 : 6);
+        }
+        camera.position.y = EYE_HEIGHT + (moving ? Math.sin(bobT)*0.045 : 0);
+        camera.rotation.y = yaw;
+        camera.rotation.x = pitch;
+
+        /* zombie AI: chase player */
+        if(hitCooldownTimer > 0) hitCooldownTimer -= dt;
+        if(zombieStunned > 0){
+            zombieStunned -= dt;
+        } else {
+            const zdx = camera.position.x - zombie.position.x;
+            const zdz = camera.position.z - zombie.position.z;
+            const dist = Math.hypot(zdx, zdz);
+            if(dist > 0.01){
+                const nx = zdx/dist, nz = zdz/dist;
+                zombie.position.x += nx * ZOMBIE_SPEED * dt;
+                zombie.position.z += nz * ZOMBIE_SPEED * dt;
+                clampToWalkable(zombie.position);
+                zombie.rotation.y = Math.atan2(nx, nz);
+                zombieWalkT += dt*7;
+            }
+            zDistLabel.textContent = 'Zonbi: ' + dist.toFixed(1) + 'm';
+            if(dist < HIT_RANGE && hitCooldownTimer <= 0){
+                hitCooldownTimer = HIT_COOLDOWN;
+                applyHit();
+            }
+        }
+        /* zombie walk-cycle bob + arm sway */
+        zombie.position.y = 0;
+        zBody.position.y = 0.9 + Math.sin(zombieWalkT)*0.03;
+        zArmL.rotation.x = Math.sin(zombieWalkT)*0.5;
+        zArmR.rotation.x = -Math.sin(zombieWalkT)*0.5;
+
+        compassEl.style.setProperty('--rot', (yaw*180/Math.PI)+'deg');
+    });
+
+    engine.runRenderLoop(()=>{ scene.render(); });
+    window.addEventListener('resize', ()=>{ engine.resize(); });
+
+    window.addEventListener('load', ()=>{
+        setTimeout(()=>{
+            const l = document.getElementById('loading');
+            l.style.opacity = '0';
+            setTimeout(()=>{ l.style.display='none'; }, 800);
+        }, 900);
+    });
+    setTimeout(()=>{
+        const l = document.getElementById('loading');
+        if(l){ l.style.opacity='0'; setTimeout(()=>{ l.style.display='none'; },800); }
+    }, 2400);
+
+})();
+</script>
+</body>
+</html>
